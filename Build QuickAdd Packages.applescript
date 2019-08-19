@@ -14,6 +14,8 @@ set jamfServer1 to "Company's Jamf Pro Server" -- Change to the name of your pro
 set jamfServer2 to "Company's Jamf Pro Server" -- Change to the name of your beta Jamf Pro server
 set jamfServer3 to "Company's Jamf Pro Server" -- Change to the name of your dev Jamf Pro server
 
+set siteList to {"Site 1", "Site 2", "Site 3", "Site 4", "Site 5"} -- Replace Site 1, Site 2, etc. with the names of your Jamf Pro sites.
+
 set certName to "Developer ID Installer: Your Company (ID number)" -- Change to the name of your Developer ID Installer certificate. If you don't want to sign the packages
 
 set defaultPath to "My External HD:Packages and Scripts:Enrollment Packages:" -- Change this to the default path you want Recon to use for saving packages. I have mine set to a network volume, so if that volume isn't mounted when the script runs it will default to the desktop.
@@ -108,7 +110,6 @@ END"
 			set siteSel to {"All Sites"}
 			set siteShort to "No_Site"
 		else
-			set siteList to {"Site 1", "Site 2", "Site 3", "Site 4", "Site 5"}
 			set siteSel to items of (choose from list siteList with prompt "Choose which sites you want to build QuickAdd packages for:" with multiple selections allowed)
 		end if
 		

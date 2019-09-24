@@ -6,23 +6,40 @@ use scripting additions
 -- Version 1.0 - 3 March 2018
 -- Version 2.0 - 13 August 2019
 -- Version 2.1 - 19 August 2019 (public release)
+-- Version 2.2 - 24 Sep 2019 (internal only)
+-- Version 2.3 - 24 Sep 2019 (Simplified by removing Python code, made it easier to disable signing, updated the descriptions of variables including more whitespace for readability, added notification after packages finish building )
 
 
 
--- SET CUSTOM VARIABLES
+
+
+-------------SET CUSTOM VARIABLES
+
 set jamfServer1 to "Company's Jamf Pro Server" -- Change to the name of your production Jamf Pro server
 set jamfServer2 to "Company's Jamf Pro Server" -- Change to the name of your beta Jamf Pro server
 set jamfServer3 to "Company's Jamf Pro Server" -- Change to the name of your dev Jamf Pro server
 
+
 set siteList to {"Site 1", "Site 2", "Site 3", "Site 4", "Site 5"} -- Replace Site 1, Site 2, etc. with the names of your Jamf Pro sites.
 
-set certName to "Developer ID Installer: Your Company (ID number)" -- Change to the name of your Developer ID Installer certificate. If you don't want to sign the packages
+
+set signPKGs to "yes" --Set to "yes" if you want to sign the packages. Change to "no" if you don't want to sign them.
+
+
+set certName to "Developer ID Installer: Your Company (ID number)" -- Change to the name of your Developer ID Installer certificate. If you don't want to sign the packages change the variable above as instructed and comment out the certName variable.
+
 
 set defaultPath to "My External HD:Packages and Scripts:Enrollment Packages:" -- Change this to the default path you want Recon to use for saving packages. I have mine set to a network volume, so if that volume isn't mounted when the script runs it will default to the desktop.
 
+
 -- If you want to change the naming convention for your QuickAdd packages, search the script for the first instance of "QuickAddName" and edit that line. The default is "QuickAdd-[site name]-[ProdLane/BetaLane/DevLane]-[Recon version]"
 
--- NO NEED TO EDIT BELOW THIS LINE (unless you want to change the pkg naming convention as described above)
+
+
+
+
+
+-------------NO NEED TO EDIT BELOW THIS LINE (unless you want to change the pkg naming convention as described above)
 
 (*
 
@@ -75,31 +92,7 @@ tell application "System Events"
 		
 		--Change to the QuickAdd Package panel
 		if windowName does not contain "QuickAdd Package" then
-			--Find out where on the screen the button is
-			set QuickAddButtonPos to position of static text 1 of row 3 of table 1 of scroll area 1 of window 1
-			
-			set x to (item 1 of QuickAddButtonPos)
-			set y to (item 2 of QuickAddButtonPos)
-			do shell script " 
-/usr/bin/python <<END
-import sys
-import time
-from Quartz.CoreGraphics import * 
-def mouseEvent(type, posx, posy):
-          theEvent = CGEventCreateMouseEvent(None, type, (posx,posy), kCGMouseButtonLeft)
-          CGEventPost(kCGHIDEventTap, theEvent)
-def mousemove(posx,posy):
-          mouseEvent(kCGEventMouseMoved, posx,posy);
-def mouseclick(posx,posy):
-          mouseEvent(kCGEventLeftMouseDown, posx,posy);
-          mouseEvent(kCGEventLeftMouseUp, posx,posy);
-ourEvent = CGEventCreate(None); 
-currentpos=CGEventGetLocation(ourEvent);             # Save current mouse position
-mouseclick(" & x & "," & y & ");
-mousemove(int(currentpos.x),int(currentpos.y));      # Restore mouse position
-END"
-			-- Python code to simulate mouse click from https://discussions.apple.com/thread/3708948?answerId=25436093022#25436093022
-			-- This probably isn't the most effecient way to do it... but it's the first one I found
+			select row 3 of table 1 of scroll area 1 of window windowName
 		end if
 		
 		activate
@@ -110,7 +103,11 @@ END"
 			set siteSel to {"All Sites"}
 			set siteShort to "No_Site"
 		else
-			set siteSel to items of (choose from list siteList with prompt "Choose which sites you want to build QuickAdd packages for:" with multiple selections allowed)
+			try
+				set siteSel to items of (choose from list siteList with prompt "Choose which sites you want to build QuickAdd packages for:" with multiple selections allowed)
+			on error
+				return
+			end try
 		end if
 		
 		set mgmtUsername to ""
@@ -217,19 +214,25 @@ END"
 						if value is 1 then click
 					end tell
 					
-					tell (first checkbox whose name is "Sign with:")
-						if value is 0 then click -- NO SIGNING: change 0 to 1
-					end tell
 					
 					tell (first checkbox whose name is "Use existing site membership, if applicable")
 						if value is 1 then click
 					end tell
 					
-					--Set certificate -- NO SIGNING: comment out or delete this tell block 
-					tell pop up button 2
-						click
-						tell menu 1 to click menu item certName
-					end tell
+					--Set certificate
+					if signPKGs is "yes" then
+						tell (first checkbox whose name is "Sign with:")
+							if value is 0 then click -- Enable signing
+						end tell
+						tell pop up button 2
+							click
+							tell menu 1 to click menu item certName
+						end tell
+					else if signPKGs is "no" then
+						tell (first checkbox whose name is "Sign with:")
+							if value is 1 then click -- Disable signing
+						end tell
+					end if
 					
 					--Set site
 					tell pop up button 3
@@ -271,6 +274,10 @@ END"
 		end repeat
 	end tell
 end tell
+
+display notification "Done building QuickAdd packages" with title "Recon" sound name "Glass"
+
+return
 
 (*
 
